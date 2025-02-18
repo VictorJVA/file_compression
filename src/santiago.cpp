@@ -35,12 +35,14 @@ Nodo* construirArbolHuffman(const unordered_map<char, int>& frecuencias) {
     return cola.top();
 }
 
-void generarCodigos(Nodo* raiz, string codigo, unordered_map<char, string>& codigos) {
-    if (!raiz) return;
-    if (raiz->caracter != '\0')
-        codigos[raiz->caracter] = codigo;
-    generarCodigos(raiz->izquierda, codigo + "1", codigos);
-    generarCodigos(raiz->derecha, codigo + "0", codigos);
+void generarCodigos(Nodo* raiz, string codigo, unordered_map<char, string>& codigos, unordered_map<string, char>& decodificacion) {
+  if (!raiz) return;
+  if (raiz->caracter != '\0') {
+      codigos[raiz->caracter] = codigo;
+      decodificacion[codigo] = raiz->caracter;
+  }
+  generarCodigos(raiz->izquierda, codigo + "1", codigos, decodificacion);
+  generarCodigos(raiz->derecha, codigo + "0", codigos, decodificacion);
 }
 
 unordered_map<char, int> calcularFrecuencia(const string& contenido) {
@@ -65,6 +67,36 @@ string leerArchivo(const char* nombreArchivo) {
     return contenido;
 }
 
+void guardarCodigos(const unordered_map<char, string>& codigos, const string& nombreArchivo) {
+  ofstream archivo(nombreArchivo);
+  if (!archivo) {
+      cerr << "Error al escribir el archivo de códigos" << endl;
+      exit(EXIT_FAILURE);
+  }
+  for (const auto& par : codigos) {
+      archivo << par.first << " " << par.second << "\n";
+  }
+  archivo.close();
+}
+
+string descomprimir(const string& contenidoComprimido, const unordered_map<string, char>& decodificacion) {
+  string buffer;
+    string resultado;
+    for (char bit : contenidoComprimido) {
+        buffer += bit;
+        auto it = decodificacion.find(buffer);
+        if (it != decodificacion.end()) {
+            resultado += it->second;
+            buffer.clear();
+        }
+    }
+    if (!buffer.empty()) {
+        cerr << "Error: Bits residuales no decodificados." << endl;
+    }
+    return resultado;
+}
+
+
 void escribirArchivo(const char* nombreArchivo, const string& contenido) {
     int fd = open(nombreArchivo, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd == -1) {
@@ -75,6 +107,55 @@ void escribirArchivo(const char* nombreArchivo, const string& contenido) {
     close(fd);
 }
 
+void comprimirArchivo(string nombreArchivo){
+  string contenido = leerArchivo(nombreArchivo.c_str());
+      unordered_map<char, int> frecuencias = calcularFrecuencia(contenido);
+      Nodo* raiz = construirArbolHuffman(frecuencias);
+      unordered_map<char, string> codigos;
+      unordered_map<string, char> decodificacion;
+      generarCodigos(raiz, "", codigos, decodificacion);
+
+      string contenidoComprimido;
+      for (char c : contenido)
+          contenidoComprimido += codigos[c];
+
+      escribirArchivo((nombreArchivo + ".huff").c_str(), contenidoComprimido);
+      guardarCodigos(codigos, (nombreArchivo + ".codigos").c_str());
+      cout << "Archivo comprimido generado: " << nombreArchivo << ".huff" << endl;
+      cout << "Códigos almacenados en: " << nombreArchivo << ".codigos" << endl;
+}
+void descomprimirArchivo(string nombreArchivo){
+  string nombreBase = nombreArchivo.substr(0, nombreArchivo.find_last_of('.'));
+    ifstream archivoCodigos(nombreBase + ".codigos");
+    if (!archivoCodigos) {
+        cerr << "Error al abrir el archivo de códigos" << endl;
+        //return EXIT_FAILURE;
+    }
+
+    unordered_map<string, char> decodificacion;
+    string linea;
+    while (getline(archivoCodigos, linea)) {
+        if (linea.empty()) continue;
+        
+        // Separar el carácter y su código
+        size_t espacio = linea.find(' ');
+        if (espacio == string::npos || espacio == linea.size() - 1) {
+            cerr << "Formato inválido en línea: " << linea << endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        char caracter = linea[0];
+        string codigo = linea.substr(espacio + 1);
+        
+        decodificacion[codigo] = caracter;
+    }
+    archivoCodigos.close();
+      archivoCodigos.close();
+      string contenidoComprimido = leerArchivo(nombreArchivo.c_str());
+      string contenidoOriginal = descomprimir(contenidoComprimido, decodificacion);
+      escribirArchivo((nombreArchivo.substr(0, nombreArchivo.find_last_of('.')) + "_descomprimido.txt").c_str(), contenidoOriginal);
+      cout << "Archivo descomprimido generado." << endl;
+}
 int main(int argc, char* argv[]) {
     if (argc != 3) {
         cerr << "Uso: " << argv[0] << " -c <archivo>" << endl;
@@ -82,16 +163,14 @@ int main(int argc, char* argv[]) {
     }
     string opcion = argv[1];
     string nombreArchivo = argv[2];
-    string contenido = leerArchivo(nombreArchivo.c_str());
-    unordered_map<char, int> frecuencias = calcularFrecuencia(contenido);
-    Nodo* raiz = construirArbolHuffman(frecuencias);
-    unordered_map<char, string> codigos;
-    generarCodigos(raiz, "", codigos);
-    string contenidoComprimido;
-    for (char c : contenido)
-        contenidoComprimido += codigos[c];
-    escribirArchivo((nombreArchivo + ".huff").c_str(), contenidoComprimido);
-    cout << "Archivo comprimido generado: " << nombreArchivo << ".huff" << endl;
+    if (opcion == "-c") {
+      comprimirArchivo(nombreArchivo);
+  } else if (opcion == "-h") {
+    descomprimirArchivo(nombreArchivo);
+  } else {
+      cerr << "Opción no válida. Use -c para comprimir o -h para descomprimir." << endl;
+      return EXIT_FAILURE;
+  }
     return 0;
 }
 
