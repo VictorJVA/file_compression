@@ -1,0 +1,25 @@
+# Compiled Object files
+*.o
+*.obj
+
+# Executables
+compresor
+*.exe
+*.out
+
+# Test files
+prueba.txt
+prueba.huff
+prueba.codigos
+prueba.key
+prueba_descomprimido.txt
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo 

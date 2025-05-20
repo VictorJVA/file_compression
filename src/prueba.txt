@@ -1,1 +1,3 @@
-BANANA
+Hola mundo
+Este es un archivo de prueba
+para comprimir y descomprimir. 
