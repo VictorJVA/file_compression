@@ -70,6 +70,3 @@ Asegúrate de que el archivo `.key` esté presente en el mismo directorio.
 # Descomprimir y desencriptar
  ./compresor -h prueba.huff -e
 ```
-
-## Autor
-- [Tu Nombre] 
